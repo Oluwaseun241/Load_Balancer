@@ -4,11 +4,27 @@ import (
 	"log"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 )
 
 /* Load balancer */
 func NewLoadBalancer(targetServers []string) (*httputil.ReverseProxy, error) {
+  var targets []*url.URL
+  for _, ts := range targetServers {
+    u, err := url.Parse(ts)
+    if err != nil {
+      return nil, err
+    }
+    targets = append(targets, u)
+  }
 
+  director := func (req *http.Request) {
+    targetURL := targets[req.RemoteAddr[7]%uint8(len(targets))]
+    req.URL.Scheme = targetURL.Scheme
+    req.URL.Host = targetURL.Host
+    req.URL.Path = targetURL.Path + req.URL.Path
+  }
+  return &httputil.ReverseProxy{Director: director}, nil
 }
 
 
